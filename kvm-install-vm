@@ -617,6 +617,12 @@ _EOF_
         --target=${VMDIR}/${VMNAME} \
         || die "Could not create storage pool."
 
+
+    outputn "Setting root password"
+    virt-customize -a ${VMDIR}/${VMNAME}/${DISK} --root-password password:$ROOT_PASSWORD  > /dev/null 2>&1 \
+    && ok \
+    || die "Could not set root password."
+
     # Add custom MAC Address if specified
     NETWORK_PARAMS="$(join ',' \
         $(param bridge ${BRIDGE}) \
@@ -685,7 +691,11 @@ _EOF_
     fi
 
     # Eject cdrom
-    virsh change-media ${VMNAME} --path ${VMDIR}/${VMNAME}/${CI_ISO} --eject --config &>> ${VMNAME}.log
+    run "Eject cdrom" \
+    	virsh change-media ${VMNAME} \
+	--path ${VMDIR}/${VMNAME}/${CI_ISO} \
+	--eject --config \
+        || die "Could not eject CDROM."
 
     # Remove the unnecessary cloud init files
     outputn "Cleaning up cloud-init files"
@@ -726,6 +736,8 @@ _EOF_
     else
         output "Console at ${CONSOLE}"
     fi
+
+
     output "DONE"
 
     popd
@@ -783,6 +795,7 @@ function set_defaults ()
     ASSUME_YES=yes                    # Assume yes to prompts
     ASSUME_NO=0                     # Assume no to prompts
     VERBOSE=0                       # Verbosity
+    ROOT_PASSWORD=Secret@123
 
     # Reset OPTIND
     OPTIND=1
