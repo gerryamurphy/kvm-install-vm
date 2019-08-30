@@ -11,3 +11,6 @@ if [ ! -d "/home/apcon/VMImages" ]; then
 fi
 
 yum install -y  genisoimage virt-install libguestfs-tools-c qemu-img libvirt-client wget
+
+ssh-keygen -t rsa
+

@@ -785,7 +785,7 @@ function set_defaults ()
     RESIZE_DISK=true               # Resize disk (boolean)
     IMAGEDIR=/home/apcon/iso_images    # Directory to store images
     VMDIR=/home/apcon/VMImages          # Directory to store virtual machines
-    BRIDGE=virbr0                   # Hypervisor bridge
+    BRIDGE=br1                   # Hypervisor bridge
     PUBKEY=""                       # SSH public key
     DISTRO=centos7                  # Distribution
     MACADDRESS=""                   # MAC Address

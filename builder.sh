@@ -1,9 +1,9 @@
 
 #!/bin/bash
-read -p "Distribution: (ubuntu or centos) " dist
-read -p "Owner (initials): " owner
-read -p "Purpose (titan): " purpose
-read -p "Size (micro/mini/max): " size
+read -p "VM Distribution: (ubuntu or centos) " dist
+read -p "Requester (initials of requester): " owner
+read -p "VM Purpose (VM purpose, example titan-4.02): " purpose
+read -p "VM Size (micro/mini/max): " size
 
 domain=$owner-$dist-$purpose
 #echo $domain
