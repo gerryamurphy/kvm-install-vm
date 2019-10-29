@@ -26,6 +26,7 @@ COMMANDS
     detach-disk - detach a disk device from a guest domain
     list        - list all domains, running and stopped
     remove      - delete a guest domain
+    clone       - clone a guest domain
 
 EOF
 exit 0
@@ -146,6 +147,18 @@ function usage_subcommand ()
             printf "DESCRIPTION\n"
             printf "    Lists all running and stopped guest domains.\n"
             ;;
+        clone)
+            printf "NAME\n"
+            printf "    $prog create\n"
+            printf "\n"
+            printf "DESCRIPTION\n"
+            printf "    Clone a VM\n"
+            printf "EXAMPLES\n"
+            printf "    $prog clone foo\n"
+            printf "        Clone VM with the default parameters"
+            printf "\n"
+            printf "\n"
+            ;;
         *)
             printf "'$subcommand' is not a valid subcommand.\n"
             exit 1
@@ -261,7 +274,7 @@ function delete_vm ()
     else
         output "Domain ${VMNAME} does not exist"
     fi
-    
+
     [[ -d ${VMDIR}/${VMNAME} ]] && DISKDIR=${VMDIR}/${VMNAME} || DISKDIR=${IMAGEDIR}/${VMNAME}
     [ -d $DISKDIR ] \
         && outputn "Deleting ${VMNAME} files" \
@@ -989,6 +1002,136 @@ function attach-disk ()
 
 }
 
+function clone ()
+{
+
+
+
+      # After all options are processed, make sure only one variable is left (vmname)
+      if [ "$#" != 2 ]
+      then
+          printf "Please specify a single host to create.\n"
+          printf "Run 'kvm-install-vm help create' for usage.\n"
+          exit 1
+      else
+          VMNAME=$1
+          DESTINATION=$2
+
+      fi
+
+      #
+      # Check if domain already exists
+      domain_exists "${VMNAME}"
+
+
+
+
+    # Set default variables
+    FORMAT=qcow2
+
+      VMNAME=$1
+
+
+      echo "$VMNAME, $DESTINATION"
+      DISKDIR=${IMAGEDIR}/${VMNAME}
+
+
+      name=$original
+
+      check_original
+      check_destination
+      echo "mkdir ${DISKDIR}/${DESTINATION}"
+      mkdir ${DISKDIR}/${DESTINATION}
+      #exit;
+      #clone
+      outputn "Suspending VM prior to clone"
+      (virsh suspend $VMNAME &>> ${DISKDIR}/${VMNAME}.log && ok ) \
+      || die "Could not suspend VM"
+      #exit
+
+      echo "virt-clone -o $VMNAME -n $DESTINATION -f ${VMDIR}/$DESTINATION/$DESTINATION.qcow2"
+      virt-clone -o $VMNAME -n $DESTINATION -f ${VMDIR}/$DESTINATION/$DESTINATION.qcow2
+      virsh resume $VMNAME
+      sparsify
+      prepare
+
+
+
+
+        # Directory to create attached disk (Checks both images an vms directories for backward compatibility!)
+        #[[ -d ${VMDIR}/${VMNAME} ]] && DISKDIR=${VMDIR}/${VMNAME} || DISKDIR=${IMAGEDIR}/${VMNAME}
+        #DISKNAME=${VMNAME}-${TARGET}-${DISKSIZE}.${FORMAT}
+
+        #
+        # if [ ! -f "${DISKDIR}/${DISKNAME}" ]
+        # then
+        #     outputn "Creating new '${TARGET}' disk image for domain ${VMNAME}"
+        #     (qemu-img create -f ${FORMAT} -o size=$DISKSIZE,preallocation=metadata \
+        #         ${DISKDIR}/${DISKNAME} &>> ${DISKDIR}/${VMNAME}.log  && ok ) && \
+        #
+        #     outputn "Attaching ${DISKNAME} to domain ${VMNAME}"
+        #     (virsh attach-disk ${VMNAME} \
+        #         --source $DISKDIR/${DISKNAME} \
+        #         --target ${TARGET} \
+        #         --subdriver ${FORMAT} \
+        #         --cache none \
+        #         --persistent &>> ${DISKDIR}/${VMNAME}.log && ok ) \
+        #         || die "Could not attach disk."
+        # else
+        #     die "Target ${TARGET} is already created or in use."
+        # fi
+
+    # fi
+
+}
+
+
+function check_original () {
+  # if [ -z "${original}" ]; then
+  #     echo "This script clones, sparsifies and syspreps linux guest"
+  #     echo "Usage : '$0 <original guest> <destination guest>'"
+  #     echo "Please provide the guest name of a destroyed guest: exit"
+  #     exit
+  # fi
+  echo "check_original VM ", $VMNAME
+  guests_defined="$(virsh list --all --name)"
+  if grep -qvw "$VMNAME" <<< ${guests_defined}  ; then
+    echo "error: Please provide a defined guest name : exit"
+    #echo "Guests avaible :"
+    #echo "$(virsh list --all --name)"
+    exit
+  fi
+}
+
+function check_destination () {
+  echo "check_destination VM ", $DESTINATION
+  if [ -z $DESTINATION ] ; then
+    echo "Please provide the name of the destination guest: exit"
+    echo "For example : '$0 $name <destination guest>'"
+    exit
+  fi
+  if grep -qw "$DESTINATION" <<< $(virsh list --all --name)  ; then
+    echo "error: Please provide a non defined guest name : exit"
+    #echo "Different than :"
+    #echo "$(virsh list --all --name)"
+    exit
+  fi
+}
+
+function prepare () {
+  virt-sysprep -d $DESTINATION --operations customize --firstboot-command " sudo dbus-uuidgen > /etc/machine-id ; sudo hostnamectl set-hostname $DESTINATION ; touch /.autorelabel ; sudo reboot"
+}
+
+function sparsify () {
+  echo "Sparse disk optimization"
+  virt-sparsify --check-tmpdir ignore --compress --convert qcow2 --format qcow2 ${VMDIR}/$DESTINATION.qcow2 ${VMDIR}/$DESTINATION.sparse
+  rm -rf ${VMDIR}/$DESTINATION.qcow2
+  mv ${VMDIR}/$DESTINATION.sparse ${VMDIR}/$DESTINATION.qcow2
+  chown qemu:qemu ${VMDIR}/$DESTINATION.qcow2 || chown libvirt-qemu:libvirt-qemu ${VMDIR}/$DESTINATION.qcow2
+}
+
+
+
 #--------------------------------------------------
 # Main
 #--------------------------------------------------
@@ -1003,7 +1146,7 @@ case "${subcommand}" in
     help)
         if [[ "${1:-none}" == "none" ]]; then
             usage
-        elif [[ "$1" =~ ^create$|^remove$|^list$|^attach-disk$ ]]; then
+        elif [[ "$1" =~ ^create$|^remove$|^list$|^attach-disk|^clone$ ]]; then
             usage_subcommand "$1"
         else
             printf "'$1' is not a valid subcommand.\n\n"
@@ -1014,7 +1157,7 @@ case "${subcommand}" in
         virsh list --all
         exit 0
         ;;
-    create|remove|attach-disk|remove-disk)
+    create|remove|attach-disk|remove-disk|clone)
         if [[ "${1:-none}" == "none" ]]; then
             usage_subcommand "${subcommand}"
         elif [[ "$1" =~ ^help$ ]]; then

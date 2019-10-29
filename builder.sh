@@ -22,7 +22,7 @@ elif [[ $size = *"max"* ]]; then
   cpu=8
   memory=16000
   disk=120
-else 
+else
   echo "Error: unsupported VM size requested"
   exit
 fi
@@ -34,7 +34,10 @@ if [[ $dist = *"ubuntu"* ]]; then
 elif [[ $dist = *"centos"* ]]; then
   echo "Making CentOS VM"
   ./kvm-install-vm create -v -t centos7 -c $cpu -m $memory -d $disk  $domain
+elif [[ $dist = *"debian"* ]]; then
+  echo "Making Debian VM"
+  ./kvm-install-vm create -v -t debian79 -c $cpu -m $memory -d $disk  $domainelse
 else
   echo "Error: Unsupported OS requested"
   exit
-fi 
+fi
