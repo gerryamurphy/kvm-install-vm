@@ -1,4 +1,3 @@
-
 #!/bin/bash
 read -p "VM Distribution: (ubuntu or centos) " dist
 read -p "Requester (initials of requester): " owner
